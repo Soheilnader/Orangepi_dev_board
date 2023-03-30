@@ -5,6 +5,8 @@ from pyA20.gpio import gpio
 from pyA20.gpio import port
 from pyA20.gpio import connector
 
+from orangepwm import *
+
 from PyQt5 import uic
 from PyQt5.QtWidgets import QMainWindow, QApplication, QFileDialog, QTableWidgetItem, QMessageBox
 
@@ -16,6 +18,8 @@ class UI(QMainWindow):
         uic.loadUi(ts_ui, self)
         
         gpio.init() #Initialize module. Always called first
+        self.pwm = OrangePwm(100, port.PA20)
+        self.pwm.start(0)
 
         gpio.setcfg(port.PA20, gpio.OUTPUT)  #Configure LED1 as output
         gpio.setcfg(port.PA10, gpio.OUTPUT)
@@ -33,6 +37,9 @@ class UI(QMainWindow):
     def dial_pwm_change(self):
         print("Dial value = %i" % (self.dial_pwm.value()*10))
         self.lcd_pwm.display(self.dial_pwm.value()*10)
+        self.pwm.changeDutyCycle(self.dial_pwm.value()*10)
+
+        
 
     def button_relay1_func(self):
         print(self.button_relay1.isChecked())
@@ -57,6 +64,8 @@ class UI(QMainWindow):
         gpio.output(port.PA9, 0)
         gpio.output(port.PA10, 0)
         gpio.output(port.PA20, 0)
+        self.pwm.stop()
+
         sys.exit()
 
 
