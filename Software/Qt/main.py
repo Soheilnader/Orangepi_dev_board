@@ -1,6 +1,10 @@
 import os
 import sys
 
+from pyA20.gpio import gpio
+from pyA20.gpio import port
+from pyA20.gpio import connector
+
 from PyQt5 import uic
 from PyQt5.QtWidgets import QMainWindow, QApplication, QFileDialog, QTableWidgetItem, QMessageBox
 
@@ -8,8 +12,15 @@ from PyQt5.QtWidgets import QMainWindow, QApplication, QFileDialog, QTableWidget
 class UI(QMainWindow):
     def __init__(self):
         super(UI, self).__init__()
-        ts_ui = r"D:\Work\Uni\Project\Software\Qt\main.ui"
+        ts_ui = r"main.ui"
         uic.loadUi(ts_ui, self)
+        
+        gpio.init() #Initialize module. Always called first
+
+        gpio.setcfg(port.PA20, gpio.OUTPUT)  #Configure LED1 as output
+        gpio.setcfg(port.PA10, gpio.OUTPUT)
+        gpio.setcfg(port.PA9, gpio.OUTPUT)
+        
         self.button_relay1.clicked.connect(self.button_relay1_func)
         self.button_relay2.clicked.connect(self.button_relay2_func)
         self.button_relay3.clicked.connect(self.button_relay3_func)
@@ -25,14 +36,27 @@ class UI(QMainWindow):
 
     def button_relay1_func(self):
         print(self.button_relay1.isChecked())
+        gpio.output(port.PA9, self.bool_to_01(self.button_relay1.isChecked()))
 
     def button_relay2_func(self):
         print(self.button_relay2.isChecked())
+        gpio.output(port.PA10, self.bool_to_01(self.button_relay2.isChecked()))
 
+        
     def button_relay3_func(self):
         print(self.button_relay3.isChecked())
+        gpio.output(port.PA20, self.bool_to_01(self.button_relay3.isChecked()))
 
+    def bool_to_01(self, bool_input):
+        if bool_input == True:
+            return 1
+        else:
+            return 0
+    
     def exit(self):
+        gpio.output(port.PA9, 0)
+        gpio.output(port.PA10, 0)
+        gpio.output(port.PA20, 0)
         sys.exit()
 
 
