@@ -2,21 +2,28 @@
 
 from pyA20 import i2c
 
-i2c.init("/dev/i2c-0")  #Initialize module to use /dev/i2c-0
-i2c.open(0x50)  #The slave device address is 0x55
+from time import sleep
 
-#If we want to write to some register
-#i2c.write([1, 10]) #Write 0x20 to register 0xAA
+def write_eeprom(dev_add, add, data):
+
+  i2c.init("/dev/i2c-0")  #Initialize module to use /dev/i2c-0
+  i2c.open(dev_add)  #The slave device address is 0x50
+  i2c.write([add, data]) #Write data to register add
+  i2c.close() #End communication with slave device
+  sleep(0.005)
+
+def read_eeprom(dev_add, add, bytes):
+  i2c.init("/dev/i2c-0")
+  i2c.open(dev_add)
+  i2c.write([add])
+  value1 = i2c.read(bytes)
+  i2c.close()
+  sleep(0.005)
+  return value1
 
 
-#If we want to do write and read
-i2c.write([0x00])   #Set address at 0xAA register
-value1 = i2c.read(1) #Read 1 byte with start address 0xAA
-
-i2c.write([0x01])   #Set address at 0xAA register
-value2 = i2c.read(3) #Read 1 byte with start address 0xAA
-
-i2c.close() #End communication with slave device
-
-print(value1)
-print(value2)
+write_eeprom(0x50, 0x3, 0x0F)
+print(read_eeprom(0x50, 0x00, 5))
+#for i in range(127):
+  #write_eeprom(0x50, i, 255)  
+#print(read_eeprom(0x50, 0x00, 128))
