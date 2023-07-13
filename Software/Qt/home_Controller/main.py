@@ -17,7 +17,7 @@ from PyQt5.QtCore import QTimer
 from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 
-#import camera
+import camera
 #import weather
 
 class UI(QMainWindow):
