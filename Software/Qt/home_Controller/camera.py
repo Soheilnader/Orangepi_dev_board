@@ -21,7 +21,8 @@ class VideoThread(QThread):
 
     def run(self):
         # capture from web cam
-        cap = cv2.VideoCapture("http://192.168.1.52:4747/video")
+        #cap = cv2.VideoCapture("http://192.168.1.184:81/stream")
+        cap = cv2.VideoCapture("http://192.168.1.50:4747/video")
         while self._run_flag:
             ret, cv_img = cap.read()
             if ret:
