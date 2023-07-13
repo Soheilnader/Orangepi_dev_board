@@ -7,6 +7,8 @@ from pyA20.gpio import gpio
 from pyA20.gpio import port
 from pyA20.gpio import connector
 
+import serial
+
 from orangepwm import *
 
 from PyQt5 import uic, QtCore
@@ -26,6 +28,13 @@ class UI(QMainWindow):
         ts_ui = r"main.ui"
         uic.loadUi(ts_ui, self)
         self.setFixedSize(1024, 600)
+
+        self.UART_STATUS = False
+        try:
+            self.ser = serial.Serial('/dev/ttyS1', baudrate = 9600, timeout = 0.5)
+            self.UART_STATUS = True            
+        except:
+            print("UART error")
 
         gpio.init() #Initialize module. Always called first
         self.pwm = OrangePwm(100, port.PA7)
@@ -147,6 +156,11 @@ QSlider::sub-page:vertical {
 
         self.show()
 
+    def getValues(self):
+        self.ser.write(b'0')
+        data = self.ser.readline().decode('ascii')
+        return float(data)
+
     def button_lamp1_clicked(self):
         print(self.button_lamp1.isChecked())
 
@@ -248,8 +262,12 @@ QSlider::sub-page:vertical {
         self.x.append(self.x[-1] + 1)  # Add a new value 1 higher than the last.
 
         self.y = self.y[1:]  # Remove the first
-        self.y.append(randint(0, 100) * 3.3 / 100)  # Add a new random value.
-        self.progress_adc.setValue(int(self.y[-1] * 100 / 3.3))
+        
+        if self.UART_STATUS:
+            self.y.append(self.getValues()*15)  # Add a new random value. 
+        else:
+            self.y.append(randint(0, 100) * 3.3*15 / 100)  # Add a new random value.  
+        self.progress_adc.setValue(int(self.y[-1] * 100 / (3.3*15)))
         self.lcd_adc.display(self.y[-1])
         self.data_line.setData(self.x, self.y)  # Update the data.
 
@@ -265,6 +283,8 @@ QSlider::sub-page:vertical {
         gpio.output(port.PA10, 0)
         gpio.output(port.PA21, 0)
         self.pwm.stop()
+        if self.UART_STATUS:
+            self.ser.close()
 
         sys.exit()
 
