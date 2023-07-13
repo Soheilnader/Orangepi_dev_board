@@ -3,11 +3,11 @@ import sys
 import time
 from random import randint
 
-# from pyA20.gpio import gpio
-# from pyA20.gpio import port
-# from pyA20.gpio import connector
+from pyA20.gpio import gpio
+from pyA20.gpio import port
+from pyA20.gpio import connector
 
-# from orangepwm import *
+from orangepwm import *
 
 from PyQt5 import uic, QtCore
 from PyQt5.QtWidgets import QMainWindow, QApplication, QFileDialog, QTableWidgetItem, QMessageBox
@@ -17,8 +17,8 @@ from PyQt5.QtCore import QTimer
 from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 
-import camera
-import weather
+#import camera
+#import weather
 
 class UI(QMainWindow):
     def __init__(self):
@@ -27,6 +27,18 @@ class UI(QMainWindow):
         uic.loadUi(ts_ui, self)
         self.setFixedSize(1024, 600)
 
+        gpio.init() #Initialize module. Always called first
+        self.pwm = OrangePwm(100, port.PA7)
+        self.pwm.start(0)
+
+        gpio.setcfg(port.PA10, gpio.OUTPUT)  #Configure LED1 as output
+        gpio.setcfg(port.PA9, gpio.OUTPUT)
+        gpio.setcfg(port.PA21, gpio.OUTPUT)
+        
+        self.button_lamp1.clicked.connect(self.button_lamp1_clicked)
+        self.button_lamp2.clicked.connect(self.button_lamp2_clicked)
+        self.button_fan.clicked.connect(self.button_fan_clicked)
+        self.button_exit.clicked.connect(self.exit)
 
 
         # creating a timer object
@@ -39,7 +51,7 @@ class UI(QMainWindow):
         self.x = list(range(100))  # 100 time points
         self.y = [0 for _ in range(100)]  # 100 data points
 
-        # self.graphWidget.setBackground('b')
+        #self.graphWidget.setBackground('b')
 
         pen = pg.mkPen(color=(255, 0, 0))
         self.data_line = self.graphWidget.plot(self.x, self.y, pen=pen)
@@ -75,10 +87,6 @@ class UI(QMainWindow):
             QPushButton:hover {border-image: url(pic/buttons/cooler_on.png);}
         """)
 
-        self.button_weather.setStyleSheet("""
-            QPushButton {border-image: url(pic/buttons/weather_off.png);}
-            QPushButton:hover {border-image: url(pic/buttons/weather_on.png);}
-        """)
 
         self.button_exit.setStyleSheet("""
         QPushButton {border-image: url(pic/buttons/exit_off.png);}
@@ -124,6 +132,9 @@ QSlider::sub-page:vertical {
         thermo_img = QPixmap(r"pic/background/thermo.png")
         self.label_thermo.setPixmap(thermo_img)
 
+        usc_img = QPixmap(r"pic/background/usc.png")
+        self.img_usc.setPixmap(usc_img)
+
         self.button_lamp1.clicked.connect(self.button_lamp1_clicked)
         self.button_lamp2.clicked.connect(self.button_lamp2_clicked)
         self.button_fan.clicked.connect(self.button_fan_clicked)
@@ -131,7 +142,6 @@ QSlider::sub-page:vertical {
         self.button_heater.clicked.connect(self.button_heater_clicked)
         self.button_cooler.clicked.connect(self.button_cooler_clicked)
         self.slider_fan.valueChanged.connect(self.slider_fan_change)
-        self.button_weather.clicked.connect(self.button_weather_clicked)
 
         self.button_exit.clicked.connect(self.exit)
 
@@ -142,22 +152,27 @@ QSlider::sub-page:vertical {
 
         if (self.button_lamp1.isChecked()):
             self.button_lamp1.setStyleSheet("border-image: url(pic/buttons/lamp1_on.png);")
+            gpio.output(port.PA9, self.bool_to_01(self.button_lamp1.isChecked()))
         if (not self.button_lamp1.isChecked()):
             self.button_lamp1.setStyleSheet("""
         QPushButton {border-image: url(pic/buttons/lamp1_off.png);}
         QPushButton:hover {border-image: url(pic/buttons/lamp1_on.png);}
     """)
+        gpio.output(port.PA9, self.bool_to_01(self.button_lamp1.isChecked()))
 
     def button_lamp2_clicked(self):
         print(self.button_lamp2.isChecked())
 
         if (self.button_lamp2.isChecked()):
             self.button_lamp2.setStyleSheet("border-image: url(pic/buttons/lamp2_on.png);")
+
         if (not self.button_lamp2.isChecked()):
             self.button_lamp2.setStyleSheet("""
         QPushButton {border-image: url(pic/buttons/lamp2_off.png);}
         QPushButton:hover {border-image: url(pic/buttons/lamp2_on.png);}
     """)
+        gpio.output(port.PA10, self.bool_to_01(self.button_lamp2.isChecked()))
+        
 
     def button_fan_clicked(self):
         print(self.button_fan.isChecked())
@@ -165,6 +180,8 @@ QSlider::sub-page:vertical {
         if (self.button_fan.isChecked()):
             self.button_fan.setStyleSheet("border-image: url(pic/buttons/fan_on.png);")
             print(self.slider_fan.value())
+            gpio.output(port.PA21, self.bool_to_01(self.button_fan.isChecked()))
+            self.pwm.changeDutyCycle(self.slider_fan.value()*20)
             self.lcd_fan.display(self.slider_fan.value())
         if (not self.button_fan.isChecked()):
             self.button_fan.setStyleSheet("""
@@ -172,6 +189,8 @@ QSlider::sub-page:vertical {
         QPushButton:hover {border-image: url(pic/buttons/fan_on.png);}
     """)
             self.lcd_fan.display(0)
+            gpio.output(port.PA21, self.bool_to_01(self.button_fan.isChecked()))
+            self.pwm.changeDutyCycle(0)
 
     def button_heater_clicked(self):
         print(self.button_heater.isChecked())
@@ -200,8 +219,11 @@ QSlider::sub-page:vertical {
         if (self.button_fan.isChecked()):
             print(self.slider_fan.value())
             self.lcd_fan.display(self.slider_fan.value())
+            self.pwm.changeDutyCycle(self.slider_fan.value()*20)
         else:
             self.lcd_fan.display(0)
+            gpio.output(port.PA21, self.bool_to_01(self.button_fan.isChecked()))
+            self.pwm.changeDutyCycle(0)
 
     def button_cam_clicked(self):
         print("Cam")
@@ -231,12 +253,18 @@ QSlider::sub-page:vertical {
         self.lcd_adc.display(self.y[-1])
         self.data_line.setData(self.x, self.y)  # Update the data.
 
+    def bool_to_01(self, bool_input):
+        if bool_input == True:
+            return 1
+        else:
+            return 0
+
     def exit(self):
 
-        # gpio.output(port.PA9, 0)
-        # gpio.output(port.PA10, 0)
-        # gpio.output(port.PA20, 0)
-        # self.pwm.stop()
+        gpio.output(port.PA9, 0)
+        gpio.output(port.PA10, 0)
+        gpio.output(port.PA21, 0)
+        self.pwm.stop()
 
         sys.exit()
 
