@@ -3,13 +3,13 @@ import sys
 import time
 from random import randint
 
-#from pyA20.gpio import gpio
-#from pyA20.gpio import port
-#from pyA20.gpio import connector
+from pyA20.gpio import gpio
+from pyA20.gpio import port
+from pyA20.gpio import connector
 
-#import serial
+import serial
 
-#from orangepwm import *
+from orangepwm import *
 
 from PyQt5 import uic, QtCore
 from PyQt5.QtWidgets import QMainWindow, QApplication, QFileDialog, QTableWidgetItem, QMessageBox
@@ -31,7 +31,7 @@ class UI(QMainWindow):
 
 
         self.UART_STATUS = False
-        '''
+        
         try:
             self.ser = serial.Serial('/dev/ttyS1', baudrate=9600, timeout=0.5)
             self.UART_STATUS = True
@@ -45,7 +45,7 @@ class UI(QMainWindow):
         gpio.setcfg(port.PA10, gpio.OUTPUT)  # Configure LED1 as output
         gpio.setcfg(port.PA9, gpio.OUTPUT)
         gpio.setcfg(port.PA21, gpio.OUTPUT)
-'''
+
 
         self.button_pump1.clicked.connect(self.button_pump1_clicked)
         self.button_pump4.clicked.connect(self.button_pump4_clicked)
@@ -56,8 +56,9 @@ class UI(QMainWindow):
 
 
         self.x = list(range(100))  # 100 time points
-        self.y = [0 for _ in range(100)]  # 100 data points
-
+        self.y1 = [0 for _ in range(100)]  # 100 data points
+        self.y2 = [0 for _ in range(100)]  # 100 data points
+        
         # ... init continued ...
         self.timer = QtCore.QTimer()
         self.timer.setInterval(1000)
@@ -72,17 +73,24 @@ class UI(QMainWindow):
         self.img_usc.setPixmap(usc_img)
 
         self.show()
-    '''
+    '''        
     def getValues(self):
         self.ser.write(b'0')
         data = self.ser.readline().decode('ascii')
         return float(data)
     '''
 
+    def getValues(self, pin):
+        if pin==0:    
+            self.ser.write(b'0')
+        elif pin==1:    
+            self.ser.write(b'1')
+        data = self.ser.readline().decode('ascii')
+        return float(data)
 
     def button_pump1_clicked(self):
         print(self.button_pump1.isChecked())
-        #gpio.output(port.PA9, self.bool_to_01(self.button_lamp1.isChecked()))
+        gpio.output(port.PA9, self.bool_to_01(self.button_pump1.isChecked()))
         if self.button_pump1.isChecked():
             self.rpm1 = 1000
         if not self.button_pump1.isChecked():
@@ -91,7 +99,7 @@ class UI(QMainWindow):
 
     def button_pump4_clicked(self):
         print(self.button_pump4.isChecked())
-        #gpio.output(port.PA10, self.bool_to_01(self.button_pump4.isChecked()))
+        gpio.output(port.PA10, self.bool_to_01(self.button_pump4.isChecked()))
         if self.button_pump4.isChecked():
             self.rpm4 = 1000
         if not self.button_pump4.isChecked():
@@ -104,30 +112,30 @@ class UI(QMainWindow):
         if (self.button_pump3.isChecked()):
             print(self.dial_pump.value())
             self.rpm3 = self.dial_pump.value() * 200
-            #gpio.output(port.PA21, self.bool_to_01(self.button_pump3.isChecked()))
-            #self.pwm.changeDutyCycle(self.dial_pump.value() * 20)
+            gpio.output(port.PA21, self.bool_to_01(self.button_pump3.isChecked()))
+            self.pwm.changeDutyCycle(self.dial_pump.value() * 20)
             #self.lcd_fan.display(self.dial_pump.value())
         if (not self.button_pump3.isChecked()):
             self.rpm3 = 0
 
             #self.lcd_fan.display(0)
-            #gpio.output(port.PA21, self.bool_to_01(self.button_pump3.isChecked()))
-            #self.pwm.changeDutyCycle(0)
+            gpio.output(port.PA21, self.bool_to_01(self.button_pump3.isChecked()))
+            self.pwm.changeDutyCycle(0)
             print("off")
         self.lcd_rpm3.display(self.rpm3)
 
     def dial_pump_change(self):
-        # print(self.dial_pump.value())
+        print(self.dial_pump.value())
         if (self.button_pump3.isChecked()):
             print(self.dial_pump.value())
             self.rpm3 = self.dial_pump.value() * 200
             #self.lcd_fan.display(self.dial_pump.value())
-            #self.pwm.changeDutyCycle(self.slider_fan.value() * 20)
+            self.pwm.changeDutyCycle(self.dial_pump.value() * 20)
         else:
             self.rpm3 = 0
             #self.lcd_fan.display(0)
-            #gpio.output(port.PA21, self.bool_to_01(self.button_pump3.isChecked()))
-            #self.pwm.changeDutyCycle(0)
+            gpio.output(port.PA21, self.bool_to_01(self.button_pump3.isChecked()))
+            self.pwm.changeDutyCycle(0)
             print("off")
         self.lcd_rpm3.display(self.rpm3)
 
@@ -136,14 +144,19 @@ class UI(QMainWindow):
         self.x = self.x[1:]  # Remove the first y element.
         self.x.append(self.x[-1] + 1)  # Add a new value 1 higher than the last.
 
-        self.y = self.y[1:]  # Remove the first
-
+        self.y1 = self.y1[1:]  # Remove the first
+        self.y2 = self.y2[1:]  # Remove the first
+        
         if self.UART_STATUS:
-            self.y.append(self.getValues())  # Add a new random value.
+            self.y1.append(self.getValues(0))  # Add a new random value.
+            self.y2.append(self.getValues(1))  # Add a new random value.
         else:
-            self.y.append(randint(0, 100) * 3.3 * 15 / 100)  # Add a new random value.
-        self.progress_tank1.setValue(int(self.y[-1] * 100 / (3.3 * 15)))
-        #self._lcdadc.display(self.y[-1])
+            self.y1.append(randint(0, 100) * 3.3 * 15 / 100)  # Add a new random value.
+            self.y2.append(randint(0, 100) * 3.3 * 15 / 100)  # Add a new random value.
+        self.progress_tank1.setValue(int(self.y1[-1] * 100 / (3.3)))
+        self.progress_tank2.setValue(int(self.y2[-1] * 100 / (3.3)))
+        self.progress_tank3.setValue(int((int(self.y1[-1] * 100 / (3.3)) + int(self.y2[-1] * 100 / (3.3)))/2))
+        #self._lcdadc.display(self.y1[-1])
         self.temp1 = randint(30, 35)
         self.temp2 = randint(30, 35)
         self.temp3 = float((self.temp1 + self.temp2) / 2)
@@ -166,10 +179,10 @@ class UI(QMainWindow):
 
 
     def exit(self):
-        #gpio.output(port.PA9, 0)
-        #gpio.output(port.PA10, 0)
-        #gpio.output(port.PA21, 0)
-        #self.pwm.stop()
+        gpio.output(port.PA9, 0)
+        gpio.output(port.PA10, 0)
+        gpio.output(port.PA21, 0)
+        self.pwm.stop()
         if self.UART_STATUS:
             self.ser.close()
 
